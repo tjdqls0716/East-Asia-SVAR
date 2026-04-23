@@ -29,3 +29,18 @@ gen dl_gdp = d.l_gdp
 gen dl_cpi = d.l_cpi
 gen dl_reer = d.l_reer
 
+
+// ---------------------------------------------------------
+// Part 2: Unit Root Test 
+// ---------------------------------------------------------
+* H0: All panels contain unit roots
+xtunitroot fisher l_gdp, dfuller lags(1)
+xtunitroot fisher l_cpi, dfuller lags(1)
+xtunitroot fisher l_reer, dfuller lags(1)
+* Conclusion: All variables are non-stationary (p > 0.05).
+
+* H0: All panels contain unit roots
+xtunitroot fisher dl_gdp, dfuller lags(1)
+xtunitroot fisher dl_cpi, dfuller lags(1)
+xtunitroot fisher dl_reer, dfuller lags(1)
+* Conclusion: All variables are stationary at 1% level (p=0.000).
