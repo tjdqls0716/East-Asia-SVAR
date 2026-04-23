@@ -30,17 +30,46 @@ gen dl_cpi = d.l_cpi
 gen dl_reer = d.l_reer
 
 
-// ---------------------------------------------------------
-// Part 2: Unit Root Test 
-// ---------------------------------------------------------
-* H0: All panels contain unit roots
+// -----------------------------------------------------------------------------
+// Part 2: Unit Root Test (Panel Data)
+// -----------------------------------------------------------------------------
+// Testing for stationarity using Fisher-type Augmented Dickey-Fuller (ADF) tests.
+// Null Hypothesis (H0): All panels contain unit roots (Non-stationary).
+
+* [A] Level Variables (Log-transformed)
+// Result: High p-values (p > 0.05) indicate the presence of unit roots.
 xtunitroot fisher l_gdp, dfuller lags(1)
 xtunitroot fisher l_cpi, dfuller lags(1)
 xtunitroot fisher l_reer, dfuller lags(1)
-* Conclusion: All variables are non-stationary (p > 0.05).
 
-* H0: All panels contain unit roots
+* [B] First-Differenced Variables (Growth/Volatility)
+// Result: Low p-values (p < 0.01) reject H0; variables are stationary at 1% level.
 xtunitroot fisher dl_gdp, dfuller lags(1)
 xtunitroot fisher dl_cpi, dfuller lags(1)
 xtunitroot fisher dl_reer, dfuller lags(1)
-* Conclusion: All variables are stationary at 1% level (p=0.000).
+
+// -----------------------------------------------------------------------------
+// Part 3: Optimal Lag Selection
+// -----------------------------------------------------------------------------
+// Checking VAR Lag Order Selection Criteria for each economy.
+// Criteria used: AIC, HQIC, SBIC.
+
+varsoc dl_gdp dl_cpi dl_reer if country_id==1, maxlag(8)
+varsoc dl_gdp dl_cpi dl_reer if country_id==3, maxlag(8)
+varsoc dl_gdp dl_cpi dl_reer if country_id==2, maxlag(8)
+varsoc dl_gdp dl_cpi dl_reer if country_id==4, maxlag(8)
+varsoc dl_gdp dl_cpi dl_reer if country_id==5, maxlag(8)
+
+// Conclusion: Lag 4 is chosen for all economies to maintain consistency 
+// and capture quarterly seasonality.
+
+// -----------------------------------------------------------------------------
+// Part 4: Seasonal Adjustment (Generating Seasonal Dummies)
+// -----------------------------------------------------------------------------
+// Since the data is non-seasonally adjusted (NSA), seasonal dummies are included as exogenous variables to control for quarterly seasonal effects.
+gen mtr = month(dofq(qtr))
+gen s1 = (mtr == 1)
+gen s2 = (mtr == 4)
+gen s3 = (mtr == 7)
+
+// Note: 4th Quarter (mtr == 10) is used as the base reference group.
