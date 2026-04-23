@@ -1,10 +1,14 @@
 /* =========================================================================
 Project: Structural VAR (SVAR) Analysis of East Asian Economies
-Part 5: SVAR Estimation and Identification Strategy
+Part 5: SVAR Estimation with Global Controls (Enhanced Model)
 Author: tjdqls0716
-Date: 2026-04-23
+Date: 2026-04-23 (Updated)
 =========================================================================
 */
+
+// 0. Load the Integrated Dataset
+// Make sure to point to the correct path if you moved the file to the 'data/' folder
+use "data/final_panel_v2.dta", clear
 
 // -------------------------------------------------------------------------
 // 1. Structural Identification Strategy (A & B Matrices)
@@ -32,17 +36,17 @@ matrix Bmat = (., 0, 0 \ ///
                0, 0, .)
 
 // -------------------------------------------------------------------------
-// 2. SVAR Estimation for South Korea (Country ID: 1)
+// 2. SVAR Estimation for South Korea (Country ID: 1) with Global Controls
 // -------------------------------------------------------------------------
 /* Estimation Details:
    - Sample: South Korea (id == 1)
    - Lags: 4 (Determined by SBIC/HQIC criteria in Part 1)
-   - Exogenous: s1, s2, s3 (Seasonal dummies to control for quarterly effects)
+   - Exogenous: s1, s2, s3 (Seasonal dummies to control for quarterly effects) + fedfunds, ln_vix (Global Factors)
 */
-
+	 
 svar dl_gdp dl_cpi dl_reer if country_id==1, ///
      lags(1/4) ///
-     exog(s1 s2 s3) ///
+     exog(s1 s2 s3 fedfunds ln_vix) /// 
      aeq(Amat) beq(Bmat)
 	 
 // Note: Signs of coefficients in Matrix A should be reversed for interpretation due to the form Ay = B*e.
@@ -97,3 +101,20 @@ irf graph sirf, impulse(dl_cpi) response(dl_reer) ///
     subtitle("") note("")
 graph export "irf_korea_cpi_reer.png", replace as(png) width(2000)
 
+// ------------------------------------------------------------------------
+// Part 4: Variance Decomposition (FEVD) (FEVD)
+// ------------------------------------------------------------------------
+/* Objective: 
+   To quantify the relative importance of structural shocks (GDP, CPI, REER) 
+   in explaining the variance of each macroeconomic variable over a 12-quarter horizon,
+   after controlling for global exogenous factors.
+*/
+
+// [1] FEVD of REER: To what extent do domestic fundamentals drive the exchange rate?
+irf table fevd, impulse(dl_gdp dl_cpi dl_reer) response(dl_reer) step(12)
+
+// [2] FEVD of CPI: Is inflation driven by demand-pull (GDP) or imported inflation (REER)?
+irf table fevd, impulse(dl_gdp dl_cpi dl_reer) response(dl_cpi) step(12)
+
+// [3] FEVD of GDP: How independent is domestic growth from nominal and external shocks?
+irf table fevd, impulse(dl_gdp dl_cpi dl_reer) response(dl_gdp) step(12)
