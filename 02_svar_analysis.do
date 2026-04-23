@@ -47,5 +47,53 @@ svar dl_gdp dl_cpi dl_reer if country_id==1, ///
 	 
 // Note: Signs of coefficients in Matrix A should be reversed for interpretation due to the form Ay = B*e.
 
+// -------------------------------------------------------------------------
+// Part 3: Impulse Response Function (IRF) Analysis
+// -------------------------------------------------------------------------
+/* Objective: 
+   To visualise the dynamic responses of inflation (CPI) and exchange rates (REER) to a structural shock in output growth (GDP).
+   
+   Settings:
+   - File: 'skorea' results are stored in the 'myirf' dataset.
+   - Horizon: 12 quarters (3 years) to capture the medium-term transmission.
+   - Confidence Interval: 95% (shaded area).
+*/
 
+// [1] Create and save the IRF results for South Korea
+irf create skorea, set(myirf) step(12) replace
+
+// [2] Generate the IRF Graph with professional formatting
+/* Formatting details:
+   - 'sirf': Uses Structural IRF based on our A & B matrices.
+   - 'xlabel': Displays ticks every 2 quarters for better readability up to step 12.
+   - 'yrescale': Allows each subplot to have its own optimal Y-axis scale.
+*/
+* 1. GDP -> CPI 
+irf graph sirf, impulse(dl_gdp) response(dl_cpi) ///
+    individual ///
+	xlabel(0(2)12) xtitle("Quarters after Shock") ///
+    ytitle("Response of CPI") ///
+    title("Response: GDP Shock to CPI (South Korea)", size(medium)) ///
+    subtitle("") ///
+	note("") // 
+graph export "irf_korea_gdp_cpi.png", replace as(png) width(2000)
+
+* 2. GDP -> REER 
+irf graph sirf, impulse(dl_gdp) response(dl_reer) ///
+    individual ///
+	xlabel(0(2)12) xtitle("Quarters after Shock") ///
+    ytitle("Response of REER") ///
+    title("Response: GDP Shock to REER (South Korea)", size(medium)) ///
+    subtitle("") ///
+    note("")
+graph export "irf_korea_gdp_reer.png", replace as(png) width(2000)
+
+* 3. CPI -> REER 
+irf graph sirf, impulse(dl_cpi) response(dl_reer) ///
+    individual ///
+	xlabel(0(2)12) xtitle("Quarters after Shock") ///
+    ytitle("Response of REER") ///
+    title("Response: CPI Shock to REER (South Korea)") ///
+    subtitle("") note("")
+graph export "irf_korea_cpi_reer.png", replace as(png) width(2000)
 
