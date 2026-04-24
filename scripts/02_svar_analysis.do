@@ -52,7 +52,7 @@ svar dl_gdp dl_cpi dl_reer if country_id==1, ///
 // Note: Signs of coefficients in Matrix A should be reversed for interpretation due to the form Ay = B*e.
 
 // -------------------------------------------------------------------------
-// Part 3: Impulse Response Function (IRF) Analysis
+// Part 6: Impulse Response Function (IRF) Analysis
 // -------------------------------------------------------------------------
 /* Objective: 
    To visualise the dynamic responses of inflation (CPI) and exchange rates (REER) to a structural shock in output growth (GDP).
@@ -102,7 +102,7 @@ irf graph sirf, impulse(dl_cpi) response(dl_reer) ///
 graph export "irf_korea_cpi_reer.png", replace as(png) width(2000)
 
 // ------------------------------------------------------------------------
-// Part 4: Variance Decomposition (FEVD) (FEVD)
+// Part 7: Variance Decomposition (FEVD) (FEVD)
 // ------------------------------------------------------------------------
 /* Objective: 
    To quantify the relative importance of structural shocks (GDP, CPI, REER) 
