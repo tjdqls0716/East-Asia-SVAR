@@ -77,7 +77,7 @@ irf graph sirf, impulse(dl_gdp) response(dl_cpi) ///
     individual ///
 	xlabel(0(2)12) xtitle("Quarters after Shock") ///
     ytitle("Response of CPI") ///
-    title("Response: GDP Shock to CPI (South Korea)", size(medium)) ///
+    title("Response: Output Shock to CPI (South Korea)", size(medium)) ///
     subtitle("") ///
 	note("") // 
 graph export "irf_korea_gdp_cpi.png", replace as(png) width(2000)
@@ -87,7 +87,7 @@ irf graph sirf, impulse(dl_gdp) response(dl_reer) ///
     individual ///
 	xlabel(0(2)12) xtitle("Quarters after Shock") ///
     ytitle("Response of REER") ///
-    title("Response: GDP Shock to REER (South Korea)", size(medium)) ///
+    title("Response: Output Shock to REER (South Korea)", size(medium)) ///
     subtitle("") ///
     note("")
 graph export "irf_korea_gdp_reer.png", replace as(png) width(2000)
@@ -97,7 +97,7 @@ irf graph sirf, impulse(dl_cpi) response(dl_reer) ///
     individual ///
 	xlabel(0(2)12) xtitle("Quarters after Shock") ///
     ytitle("Response of REER") ///
-    title("Response: CPI Shock to REER (South Korea)") ///
+    title("Response: Inflation Shock to REER (South Korea)") ///
     subtitle("") note("")
 graph export "irf_korea_cpi_reer.png", replace as(png) width(2000)
 
