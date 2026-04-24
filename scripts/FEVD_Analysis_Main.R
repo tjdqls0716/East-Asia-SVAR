@@ -36,7 +36,8 @@ df_long$Shock <- factor(df_long$Shock,
 # Plotting: GDP
 ggplot(df_long, aes(x = Step, y = Value, fill = Shock)) +
   geom_area(color = "white", linewidth = 0.3, alpha = 0.9) +
-  scale_fill_manual(values = univ_colors, 
+  scale_fill_manual(values = color_palette, 
+                    breaks = c("GDP Shock", "CPI Shock", "REER Shock"),
                     labels = c("Output (Self)", "Inflation Shock", "Exchange Rate Shock")) +
   scale_y_continuous(labels = scales::percent_format(), expand = c(0,0)) +
   scale_x_continuous(breaks = seq(1, 12, 1), expand = c(0,0)) +
