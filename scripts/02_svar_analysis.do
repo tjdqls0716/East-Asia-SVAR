@@ -136,3 +136,57 @@ svar dl_gdp dl_cpi dl_reer if country_id==2, ///
 // --- IRF and FEVD for China ---
 irf create china, set(myirf) step(12) replace
 **"Repeat the same graphing procedure as South Korea"**
+
+// =========================================================================
+// Part 9: SVAR Estimation for Japan (Country ID: 3)
+// =========================================================================
+/* Consistent with the South Korean model, we maintain the same:
+   - Identification: Cholesky (Recursive)
+   - Global Controls: fedfunds, ln_vix
+   - Lags: 4
+*/
+
+svar dl_gdp dl_cpi dl_reer if country_id==3, ///
+     lags(1/4) ///
+     exog(s1 s2 s3 fedfunds ln_vix) /// 
+     aeq(Amat) beq(Bmat)
+	 
+// --- IRF and FEVD for China ---
+irf create japan, set(myirf) step(12) replace
+**"Repeat the same graphing procedure as South Korea"**
+
+// =========================================================================
+// Part 10: SVAR Estimation for Taiwan (Country ID: 4)
+// =========================================================================
+/* Consistent with the South Korean model, we maintain the same:
+   - Identification: Cholesky (Recursive)
+   - Global Controls: fedfunds, ln_vix
+   - Lags: 4
+*/
+
+svar dl_gdp dl_cpi dl_reer if country_id==4, ///
+     lags(1/4) ///
+     exog(s1 s2 s3 fedfunds ln_vix) /// 
+     aeq(Amat) beq(Bmat)
+	 
+// --- IRF and FEVD for China ---
+irf create taiwan, set(myirf) step(12) replace
+**"Repeat the same graphing procedure as South Korea"**
+
+// =========================================================================
+// Part 11: SVAR Estimation for HongKong (Country ID: 5)
+// =========================================================================
+/* Consistent with the South Korean model, we maintain the same:
+   - Identification: Cholesky (Recursive)
+   - Global Controls: fedfunds, ln_vix
+   - Lags: 4
+*/
+
+svar dl_gdp dl_cpi dl_reer if country_id==5, ///
+     lags(1/4) ///
+     exog(s1 s2 s3 fedfunds ln_vix) /// 
+     aeq(Amat) beq(Bmat)
+	 
+// --- IRF and FEVD for China ---
+irf create hongkong, set(myirf) step(12) replace
+**"Repeat the same graphing procedure as South Korea"**
