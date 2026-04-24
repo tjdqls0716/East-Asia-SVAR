@@ -12,7 +12,7 @@ library(tidyverse)
 # 1. Global Settings ----
 # Define a consistent color palette for all plots
 # Dark Blue: Output | Medium Blue: Inflation | Light Blue: Exchange Rate
-color_palette <- c("#023858", "#67A9CF", "#D1E5F0")
+color_palette <- c("GDP Shock" = "#023858", "CPI Shock" = "#67A9CF", "REER Shock" = "#D1E5F0")
 
 # =========================================================================
 # SECTION 1. South Korea (KOR) ----
@@ -28,7 +28,10 @@ current_country <- "South Korea"
 df_long <- df_kor_GDP %>%
   pivot_longer(cols = -Step, 
                names_to = "Shock", 
-               values_to = "Value")
+               values_to = "Value") %>%
+  mutate(Step = as.numeric(Step))
+df_long$Shock <- factor(df_long$Shock, 
+                        levels = c("GDP Shock", "CPI Shock", "REER Shock"))
 
 # Plotting: GDP
 ggplot(df_long, aes(x = Step, y = Value, fill = Shock)) +
@@ -64,9 +67,19 @@ df <- read_csv("FEVD-KOR-REER.csv", skip = 1)
 # ... [Insert the same ggplot code here, adjust 'labels' for Exchange Rate (Self)] ...
 
 # =========================================================================
-# SECTION 2. Japan (JPN) ----
+# SECTION 2. China (CHN) ----
 # =========================================================================
 
-# --- 2.1 JPN: Real GDP Analysis ---
-# df <- read_csv("FEVD-JPN-GDP.csv", skip = 1)
-# ... [Continue the same structure for Japan] ...
+# --- 2.1 CHN: Real GDP Analysis ---
+# df <- read_csv("FEVD-CHN-GDP.csv", skip = 1)
+# ... [Continue the same structure for China] ...
+
+# --- 2.2 CHN: CPI Analysis ---
+# Load data
+df <- read_csv("FEVD-CHN-CPI.csv", skip = 1)
+# ... [Insert the same ggplot code here, adjust 'labels' for Inflation (Self)] ...
+
+# --- 1.3 CHN: REER Analysis ---
+# Load data
+df <- read_csv("FEVD-CHN-REER.csv", skip = 1)
+# ... [Insert the same ggplot code here, adjust 'labels' for Exchange Rate (Self)] ...
