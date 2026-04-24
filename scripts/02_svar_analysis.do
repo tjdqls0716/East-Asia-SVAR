@@ -118,3 +118,21 @@ irf table fevd, impulse(dl_gdp dl_cpi dl_reer) response(dl_cpi) step(12)
 
 // [3] FEVD of GDP: How independent is domestic growth from nominal and external shocks?
 irf table fevd, impulse(dl_gdp dl_cpi dl_reer) response(dl_gdp) step(12)
+
+// =========================================================================
+// Part 8: SVAR Estimation for China (Country ID: 2)
+// =========================================================================
+/* Consistent with the South Korean model, we maintain the same:
+   - Identification: Cholesky (Recursive)
+   - Global Controls: fedfunds, ln_vix
+   - Lags: 4
+*/
+
+svar dl_gdp dl_cpi dl_reer if country_id==2, ///
+     lags(1/4) ///
+     exog(s1 s2 s3 fedfunds ln_vix) /// 
+     aeq(Amat) beq(Bmat)
+	 
+// --- IRF and FEVD for China ---
+irf create china, set(myirf) step(12) replace
+**"Repeat the same graphing procedure as South Korea"**
