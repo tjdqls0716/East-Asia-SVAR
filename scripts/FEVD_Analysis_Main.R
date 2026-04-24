@@ -80,7 +80,25 @@ df <- read_csv("FEVD-KOR-REER.csv", skip = 1)
 df <- read_csv("FEVD-CHN-CPI.csv", skip = 1)
 # ... [Insert the same ggplot code here, adjust 'labels' for Inflation (Self)] ...
 
-# --- 1.3 CHN: REER Analysis ---
+# --- 2.3 CHN: REER Analysis ---
 # Load data
 df <- read_csv("FEVD-CHN-REER.csv", skip = 1)
+# ... [Insert the same ggplot code here, adjust 'labels' for Exchange Rate (Self)] ...
+
+# =========================================================================
+# SECTION 3. Japan (JPN) ----
+# =========================================================================
+
+# --- 3.1 JPN: Real GDP Analysis ---
+# df <- read_csv("FEVD-JP-GDP.csv", skip = 1)
+# ... [Continue the same structure for Japan] ...
+
+# --- 3.2 JPN: CPI Analysis ---
+# Load data
+df <- read_csv("FEVD-JPN-CPI.csv", skip = 1)
+# ... [Insert the same ggplot code here, adjust 'labels' for Inflation (Self)] ...
+
+# --- 3.3 JPN: REER Analysis ---
+# Load data
+df <- read_csv("FEVD-JPN-REER.csv", skip = 1)
 # ... [Insert the same ggplot code here, adjust 'labels' for Exchange Rate (Self)] ...
