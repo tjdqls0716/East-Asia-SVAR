@@ -72,7 +72,7 @@ df <- read_csv("FEVD-KOR-REER.csv", skip = 1)
 # =========================================================================
 
 # --- 2.1 CHN: Real GDP Analysis ---
-# df <- read_csv("FEVD-CHN-GDP.csv", skip = 1)
+df <- read_csv("FEVD-CHN-GDP.csv", skip = 1)
 # ... [Continue the same structure for China] ...
 
 # --- 2.2 CHN: CPI Analysis ---
@@ -90,7 +90,7 @@ df <- read_csv("FEVD-CHN-REER.csv", skip = 1)
 # =========================================================================
 
 # --- 3.1 JPN: Real GDP Analysis ---
-# df <- read_csv("FEVD-JP-GDP.csv", skip = 1)
+df <- read_csv("FEVD-JPN-GDP.csv", skip = 1)
 # ... [Continue the same structure for Japan] ...
 
 # --- 3.2 JPN: CPI Analysis ---
@@ -101,4 +101,40 @@ df <- read_csv("FEVD-JPN-CPI.csv", skip = 1)
 # --- 3.3 JPN: REER Analysis ---
 # Load data
 df <- read_csv("FEVD-JPN-REER.csv", skip = 1)
+# ... [Insert the same ggplot code here, adjust 'labels' for Exchange Rate (Self)] ...
+
+# =========================================================================
+# SECTION 4. Taiwan (TWN) ----
+# =========================================================================
+
+# --- 4.1 TWN: Real GDP Analysis ---
+df <- read_csv("FEVD-TWN-GDP.csv", skip = 1)
+# ... [Continue the same structure for Taiwan] ...
+
+# --- 4.2 TWN: CPI Analysis ---
+# Load data
+df <- read_csv("FEVD-TWN-CPI.csv", skip = 1)
+# ... [Insert the same ggplot code here, adjust 'labels' for Inflation (Self)] ...
+
+# --- 4.3 TWN: REER Analysis ---
+# Load data
+df <- read_csv("FEVD-TWN-REER.csv", skip = 1)
+# ... [Insert the same ggplot code here, adjust 'labels' for Exchange Rate (Self)] ...
+
+# =========================================================================
+# SECTION 5. HongKong (HKG) ----
+# =========================================================================
+
+# --- 5.1 HKG: Real GDP Analysis ---
+df <- read_csv("FEVD-HKG-GDP.csv", skip = 1)
+# ... [Continue the same structure for HongKong] ...
+
+# --- 5.2 HKG: CPI Analysis ---
+# Load data
+df <- read_csv("FEVD-HKG-CPI.csv", skip = 1)
+# ... [Insert the same ggplot code here, adjust 'labels' for Inflation (Self)] ...
+
+# --- 5.3 HKG: REER Analysis ---
+# Load data
+df <- read_csv("FEVD-HKG-REER.csv", skip = 1)
 # ... [Insert the same ggplot code here, adjust 'labels' for Exchange Rate (Self)] ...
