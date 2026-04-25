@@ -190,3 +190,82 @@ svar dl_gdp dl_cpi dl_reer if country_id==5, ///
 // --- IRF and FEVD for China ---
 irf create hongkong, set(myirf) step(12) replace
 **"Repeat the same graphing procedure as South Korea"**
+
+// =========================================================================
+// Part 12: Structural Shock Extraction & Reshaping (For Spillover Analysis)
+// =========================================================================
+/* Objective: 
+   1. Extract structural shocks (e_t) from reduced-form residuals (u_t) for all 5 countries.
+   2. Reshape the dataset from Long to Wide format so countries align on the same 'date' row.
+   3. Save as a new dataset for Correlation/Spillover analysis.
+*/
+
+// 1. Create generic variables for the shocks
+gen shock_gdp = .
+gen shock_cpi = .
+gen shock_reer = .
+
+// 2. Loop through all 5 countries to extract shocks
+// (1:KOR, 2:CHN, 3:JPN, 4:TWN, 5:HKG)
+forvalues i = 1/5 {
+    // Silently estimate SVAR for each country
+    quietly svar dl_gdp dl_cpi dl_reer if country_id==`i', ///
+         lags(1/4) exog(s1 s2 s3 fedfunds ln_vix) aeq(Amat) beq(Bmat) 
+		 // Predict reduced-form residuals
+    quietly predict u_gdp if e(sample), res eq(dl_gdp)
+    quietly predict u_cpi if e(sample), res eq(dl_cpi)
+    quietly predict u_reer if e(sample), res eq(dl_reer)
+    
+    // Extract matrices and calculate Transformation Matrix T = B^-1 * A
+    matrix A_est = e(A)
+    matrix B_est = e(B)
+    matrix T = inv(B_est) * A_est
+    
+    // Generate structural shocks using matrix algebra (e_t = T * u_t)
+    quietly replace shock_gdp = T[1,1]*u_gdp + T[1,2]*u_cpi + T[1,3]*u_reer if e(sample)
+    quietly replace shock_cpi = T[2,1]*u_gdp + T[2,2]*u_cpi + T[2,3]*u_reer if e(sample)
+    quietly replace shock_reer = T[3,1]*u_gdp + T[3,2]*u_cpi + T[3,3]*u_reer if e(sample)
+    
+    // Drop temporary residuals for the next loop iteration
+    drop u_gdp u_cpi u_reer
+}
+
+// 3. Keep ONLY the variables needed for correlation analysis
+keep qtr country_id shock_gdp shock_cpi shock_reer
+
+// 4. Reshape data from Long to Wide format
+// (This puts all countries' shocks on the same row for the same date)
+reshape wide shock_gdp shock_cpi shock_reer, i(qtr) j(country_id)
+
+// 5. Rename variables for easy identification
+// Output Shocks
+rename shock_gdp1 shock_gdp_kor
+rename shock_gdp2 shock_gdp_chn
+rename shock_gdp3 shock_gdp_jpn
+rename shock_gdp4 shock_gdp_twn
+rename shock_gdp5 shock_gdp_hkg
+
+// Inflation Shocks
+rename shock_cpi1 shock_cpi_kor
+rename shock_cpi2 shock_cpi_chn
+rename shock_cpi3 shock_cpi_jpn
+rename shock_cpi4 shock_cpi_twn
+rename shock_cpi5 shock_cpi_hkg
+
+// Exchange Rate Shocks
+rename shock_reer1 shock_reer_kor
+rename shock_reer2 shock_reer_chn
+rename shock_reer3 shock_reer_jpn
+rename shock_reer4 shock_reer_twn
+rename shock_reer5 shock_reer_hkg
+
+// 6. Sanity Check
+summ shock_gdp*
+summ shock_cpi*
+summ shock_reer*
+
+matrix list e(A)
+matrix list e(B)
+
+// 7. Save the final dataset 
+save "Dataset_with_Shocks.dta", replace
