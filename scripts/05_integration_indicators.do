@@ -141,5 +141,10 @@ label var structural_difference ///
 keep if !missing(corr_output, corr_inflation, corr_er, ///
                 trade_integration, fin_integration, structural_difference)
 
+*Standardisation
+egen z_trade = std(trade_integration)
+egen z_fin = std(fin_integration)
+egen z_structure = std(structural_difference)
+
 * Save the cleaned final dataset for regression
 save "Final_Analysis_Data.dta", replace
