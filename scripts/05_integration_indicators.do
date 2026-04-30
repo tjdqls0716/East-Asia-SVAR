@@ -3,8 +3,7 @@ Project: Structural VAR (SVAR) Analysis of East Asian Economies
 Part 15: Construction of Indicators
 Author: tjdqls0716
 Date: 2026-04-25
-=========================================================================
-*/
+=========================================================================*/
 
 /* DESCRIPTION:
    This script calculates the bilateral Trade Integration index between 5 economies.
@@ -20,9 +19,9 @@ set more off
 * Ensure the working directory is set correctly before running
 import excel "Regression Indicators (regressors)", sheet("Sheet1") firstrow clear
 
-*==============================================================================
+*============================================================================
 * 1. Date and panel setup
-*==============================================================================
+*============================================================================
 
 gen date = yq(year, qtr)
 format date %tq
@@ -72,6 +71,15 @@ label var real_rate_j "Real interest rate of country j (%)"
 label var real_ir_diff "Real interest rate differential: -abs(real_i - real_j)"
 label var fi_real_ir_ma20 "Financial integration, real IR differential, 20-quarter MA"
 
+* nominal interest rate differential (for robustness check)
+
+gen nom_ir_diff = -abs(nom_rate_i - nom_rate_j)
+local w = 20
+rangestat (mean) fi_nom_ir_ma20 = nom_ir_diff ///
+          (count) n_nom_fi20 = nom_ir_diff, ///
+          interval(date -19 0) by(pair_id)
+replace fi_nom_ir_ma20 = . if n_nom_fi20 < `w'
+
 *============================================================================
 * 4. Industrial Structure: Krugman Specialisation Index
 *============================================================================
@@ -101,7 +109,7 @@ drop _merge
 
 keep pair pair_id date year qtr ///
      corr_output corr_inflation corr_er ///
-     trade_ma20 fi_real_ir_ma20 KSI_ma20
+     trade_ma20 fi_real_ir_ma20 fi_nom_ir_ma20 KSI_ma20
 
 *======================================================
 * 7. Rename variables
@@ -110,6 +118,8 @@ keep pair pair_id date year qtr ///
 rename trade_ma20        trade_integration
 rename fi_real_ir_ma20   fin_integration
 rename KSI_ma20          structural_difference
+
+rename fi_nom_ir_ma20    fin_integration_nom
 
 *======================================================
 * 8. Variable labels
@@ -139,12 +149,12 @@ label var structural_difference ///
 
 * Ensure balanced sample for all models (Academic standard)
 keep if !missing(corr_output, corr_inflation, corr_er, ///
-                trade_integration, fin_integration, structural_difference)
+                trade_integration, fin_integration, fin_integration_nom,  structural_difference)
 
-*Standardisation
 egen z_trade = std(trade_integration)
 egen z_fin = std(fin_integration)
 egen z_structure = std(structural_difference)
+egen z_fin_nom = std(fin_integration_nom)
 
 * Save the cleaned final dataset for regression
 save "Final_Analysis_Data.dta", replace
