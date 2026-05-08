@@ -168,8 +168,8 @@ keep pair pair_id date year qtr ///
      trade_ma20 fi_real_ir_ma20 fi_nom_ir_ma20 KSI_ma20 
 
 rename trade_ma20        trade_integration
-rename fi_real_ir_ma20   fin_integration\
-rename fi_nom_ir_ma20    fin_integration_nominal
+rename fi_real_ir_ma20   fin_integration
+rename fi_nom_ir_ma20    fin_integration_nom
 rename KSI_ma20          structural_difference
 
 // --------------------------------------------------------------------------
@@ -181,7 +181,7 @@ Standardised versions of the explanatory variables are constructed for
 comparability across coefficients. These variables have mean zero and standard deviation one in the final merged dataset before the common-sample restriction.
 */
 
-foreach x in trade_integration fin_integration fin_integration_nominal structural_difference {
+foreach x in trade_integration fin_integration fin_integration_nom structural_difference {
     egen z_`x' = std(`x')
     label var z_`x' "Standardised `x'"
 }
@@ -209,7 +209,7 @@ label var trade_integration ///
 label var fin_integration ///
     "Financial integration: real interest rate convergence (20-quarter MA)"
 
-label var fin_integration_nominal ///
+label var fin_integration_nom ///
     "Financial integration: nominal interest rate convergence (20-quarter MA)"
 
 label var structural_difference ///
@@ -226,7 +226,7 @@ the three final regression specifications.
 */
 
 keep if !missing(corr_output, corr_inflation, corr_er, ///
-                 trade_integration, fin_integration, fin_integration_nominal, structural_difference)
+                 trade_integration, fin_integration, fin_integration_nom, structural_difference)
 
 xtset pair_id date
 
