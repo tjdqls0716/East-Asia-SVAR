@@ -1,271 +1,298 @@
 /* =========================================================================
 Project: Structural VAR (SVAR) Analysis of East Asian Economies
-Part 5: SVAR Estimation with Global Controls (Enhanced Model)
+Part 2: SVAR Estimation, IRF/FEVD Analysis, and Structural Shock Extraction
 Author: tjdqls0716
-Date: 2026-04-23 (Updated)
-=========================================================================
-*/
+Date: 2026-04-23
 
-// 0. Load the Integrated Dataset
-// Make sure to point to the correct path if you moved the file to the 'data/' folder
-use "data/final_panel_v2.dta", clear
+Description:
+This script estimates country-specific SVAR models using the cleaned panel
+dataset. The SVAR is identified using a recursive Cholesky structure with the
+ordering:
 
-// -------------------------------------------------------------------------
-// 1. Structural Identification Strategy (A & B Matrices)
-// -------------------------------------------------------------------------
-/* We employ the Cholesky Decomposition (Recursive Identification) to identify 
-   structural shocks. The ordering of variables is based on their relative 
-   sluggishness in responding to economic news:
-   
-   Ordering: dl_gdp -> dl_cpi -> dl_reer
-   
-   - dl_gdp: Most exogenous; does not respond contemporaneously to other shocks.
-   - dl_cpi: Responds to output shocks within the same quarter, but not to REER.
-   - dl_reer: Most endogenous; responds immediately to both output and price shocks.
-*/
+    dl_gdp -> dl_cpi -> dl_reer
 
-// A Matrix: Contemporaneous relations among endogenous variables
-// (1s on the diagonal, 0s for restrictions, '.' for coefficients to be estimated)
+Global financial controls and seasonal dummies are included as exogenous
+variables. The script generates impulse response functions, forecast error
+variance decompositions, and extracts structural shocks for subsequent
+synchronisation analysis.
+========================================================================= */
+
+clear all
+set more off
+
+// --------------------------------------------------------------------------
+// 0. Load Cleaned Dataset
+// --------------------------------------------------------------------------
+
+use "final_panel_v2.dta", clear
+
+* Check country ID mapping before estimation
+tab country_id
+
+* Panel declaration
+xtset country_id qtr
+
+// --------------------------------------------------------------------------
+// 1. Structural Identification: Recursive Cholesky Ordering
+// --------------------------------------------------------------------------
+
+* Ordering: output growth -> inflation -> REER change
 matrix Amat = (1, 0, 0 \ ///
                ., 1, 0 \ ///
                ., ., 1)
-			   
-// B Matrix: Structural shocks (diagonal matrix assuming orthogonal shocks)
+
 matrix Bmat = (., 0, 0 \ ///
                0, ., 0 \ ///
                0, 0, .)
 
-// -------------------------------------------------------------------------
-// 2. SVAR Estimation for South Korea (Country ID: 1) with Global Controls
-// -------------------------------------------------------------------------
-/* Estimation Details:
-   - Sample: South Korea (id == 1)
-   - Lags: 4 (Determined by SBIC/HQIC criteria in Part 1)
-   - Exogenous: s1, s2, s3 (Seasonal dummies to control for quarterly effects) + fedfunds, ln_vix (Global Factors)
-*/
-	 
-svar dl_gdp dl_cpi dl_reer if country_id==1, ///
-     lags(1/4) ///
-     exog(s1 s2 s3 fedfunds ln_vix) /// 
-     aeq(Amat) beq(Bmat)
-	 
-// Note: Signs of coefficients in Matrix A should be reversed for interpretation due to the form Ay = B*e.
+// --------------------------------------------------------------------------
+// 2. SVAR Estimation, IRFs, and FEVDs
+// --------------------------------------------------------------------------
 
-// -------------------------------------------------------------------------
-// Part 6: Impulse Response Function (IRF) Analysis
-// -------------------------------------------------------------------------
-/* Objective: 
-   To visualise the dynamic responses of inflation (CPI) and exchange rates (REER) to a structural shock in output growth (GDP).
-   
-   Settings:
-   - File: 'skorea' results are stored in the 'myirf' dataset.
-   - Horizon: 12 quarters (3 years) to capture the medium-term transmission.
-   - Confidence Interval: 95% (shaded area).
-*/
+irf set myirf, replace
 
-// [1] Create and save the IRF results for South Korea
-irf create skorea, set(myirf) step(12) replace
+local countries "skorea china japan taiwan hongkong"
+local ids       "1 2 3 4 5"
+local labels    `" "South Korea" "China" "Japan" "Taiwan" "Hong Kong" "'
 
-// [2] Generate the IRF Graph with professional formatting
-/* Formatting details:
-   - 'sirf': Uses Structural IRF based on our A & B matrices.
-   - 'xlabel': Displays ticks every 2 quarters for better readability up to step 12.
-   - 'yrescale': Allows each subplot to have its own optimal Y-axis scale.
-*/
-* 1. GDP -> CPI 
-irf graph sirf, impulse(dl_gdp) response(dl_cpi) ///
-    individual ///
-	xlabel(0(2)12) xtitle("Quarters after Shock") ///
-    ytitle("Response of CPI") ///
-    title("Response: Output Shock to CPI (South Korea)", size(medium)) ///
-    subtitle("") ///
-	note("") // 
-graph export "irf_korea_gdp_cpi.png", replace as(png) width(2000)
+forvalues k = 1/5 {
 
-* 2. GDP -> REER 
-irf graph sirf, impulse(dl_gdp) response(dl_reer) ///
-    individual ///
-	xlabel(0(2)12) xtitle("Quarters after Shock") ///
-    ytitle("Response of REER") ///
-    title("Response: Output Shock to REER (South Korea)", size(medium)) ///
-    subtitle("") ///
-    note("")
-graph export "irf_korea_gdp_reer.png", replace as(png) width(2000)
+    local id     : word `k' of `ids'
+    local cname  : word `k' of `countries'
+    local clabel : word `k' of `labels'
 
-* 3. CPI -> REER 
-irf graph sirf, impulse(dl_cpi) response(dl_reer) ///
-    individual ///
-	xlabel(0(2)12) xtitle("Quarters after Shock") ///
-    ytitle("Response of REER") ///
-    title("Response: Inflation Shock to REER (South Korea)") ///
-    subtitle("") note("")
-graph export "irf_korea_cpi_reer.png", replace as(png) width(2000)
+    di "=================================================="
+    di "Estimating SVAR for `clabel'"
+    di "Country ID = `id'"
+    di "=================================================="
 
-// ------------------------------------------------------------------------
-// Part 7: Variance Decomposition (FEVD) (FEVD)
-// ------------------------------------------------------------------------
-/* Objective: 
-   To quantify the relative importance of structural shocks (GDP, CPI, REER) 
-   in explaining the variance of each macroeconomic variable over a 12-quarter horizon,
-   after controlling for global exogenous factors.
-*/
+    svar dl_gdp dl_cpi dl_reer if country_id == `id', ///
+        lags(1/4) ///
+        exog(s1 s2 s3 fedfunds ln_vix) ///
+        aeq(Amat) beq(Bmat)
 
-// [1] FEVD of REER: To what extent do domestic fundamentals drive the exchange rate?
-irf table fevd, impulse(dl_gdp dl_cpi dl_reer) response(dl_reer) step(12)
+    * Create structural IRFs with bootstrap confidence intervals.
+    set seed 12345
+    irf create `cname', step(12) replace bs reps(500)
 
-// [2] FEVD of CPI: Is inflation driven by demand-pull (GDP) or imported inflation (REER)?
-irf table fevd, impulse(dl_gdp dl_cpi dl_reer) response(dl_cpi) step(12)
+    * Selected IRF tables.
+    irf table sirf, irf(`cname') impulse(dl_gdp) response(dl_cpi) step(12)
+    irf table sirf, irf(`cname') impulse(dl_gdp) response(dl_reer) step(12)
+    irf table sirf, irf(`cname') impulse(dl_cpi) response(dl_reer) step(12)
 
-// [3] FEVD of GDP: How independent is domestic growth from nominal and external shocks?
-irf table fevd, impulse(dl_gdp dl_cpi dl_reer) response(dl_gdp) step(12)
+    * Individual IRF graph: output shock to CPI.
+    irf graph sirf, irf(`cname') impulse(dl_gdp) response(dl_cpi) ///
+        individual xlabel(0(2)12) ///
+        xtitle("Quarters after Shock") ///
+        ytitle("Response of CPI") ///
+        title("Response of CPI to Output Shock: `clabel'", size(medium)) ///
+        subtitle("") note("")
+    graph export "irf_`cname'_gdp_cpi.png", replace as(png) width(2000)
 
-// =========================================================================
-// Part 8: SVAR Estimation for China (Country ID: 2)
-// =========================================================================
-/* Consistent with the South Korean model, we maintain the same:
-   - Identification: Cholesky (Recursive)
-   - Global Controls: fedfunds, ln_vix
-   - Lags: 4
-*/
+    * Individual IRF graph: output shock to REER.
+    irf graph sirf, irf(`cname') impulse(dl_gdp) response(dl_reer) ///
+        individual xlabel(0(2)12) ///
+        xtitle("Quarters after Shock") ///
+        ytitle("Response of REER") ///
+        title("Response of REER to Output Shock: `clabel'", size(medium)) ///
+        subtitle("") note("")
+    graph export "irf_`cname'_gdp_reer.png", replace as(png) width(2000)
 
-svar dl_gdp dl_cpi dl_reer if country_id==2, ///
-     lags(1/4) ///
-     exog(s1 s2 s3 fedfunds ln_vix) /// 
-     aeq(Amat) beq(Bmat)
-	 
-// --- IRF and FEVD for China ---
-irf create china, set(myirf) step(12) replace
-**"Repeat the same graphing procedure as South Korea"**
+    * Individual IRF graph: inflation shock to REER.
+    irf graph sirf, irf(`cname') impulse(dl_cpi) response(dl_reer) ///
+        individual xlabel(0(2)12) ///
+        xtitle("Quarters after Shock") ///
+        ytitle("Response of REER") ///
+        title("Response of REER to Inflation Shock: `clabel'", size(medium)) ///
+        subtitle("") note("")
+    graph export "irf_`cname'_cpi_reer.png", replace as(png) width(2000)
 
-// =========================================================================
-// Part 9: SVAR Estimation for Japan (Country ID: 3)
-// =========================================================================
-/* Consistent with the South Korean model, we maintain the same:
-   - Identification: Cholesky (Recursive)
-   - Global Controls: fedfunds, ln_vix
-   - Lags: 4
-*/
+    * FEVD tables.
+    irf table fevd, irf(`cname') ///
+        impulse(dl_gdp dl_cpi dl_reer) response(dl_reer) step(12)
 
-svar dl_gdp dl_cpi dl_reer if country_id==3, ///
-     lags(1/4) ///
-     exog(s1 s2 s3 fedfunds ln_vix) /// 
-     aeq(Amat) beq(Bmat)
-	 
-// --- IRF and FEVD for China ---
-irf create japan, set(myirf) step(12) replace
-**"Repeat the same graphing procedure as South Korea"**
+    irf table fevd, irf(`cname') ///
+        impulse(dl_gdp dl_cpi dl_reer) response(dl_cpi) step(12)
 
-// =========================================================================
-// Part 10: SVAR Estimation for Taiwan (Country ID: 4)
-// =========================================================================
-/* Consistent with the South Korean model, we maintain the same:
-   - Identification: Cholesky (Recursive)
-   - Global Controls: fedfunds, ln_vix
-   - Lags: 4
-*/
-
-svar dl_gdp dl_cpi dl_reer if country_id==4, ///
-     lags(1/4) ///
-     exog(s1 s2 s3 fedfunds ln_vix) /// 
-     aeq(Amat) beq(Bmat)
-	 
-// --- IRF and FEVD for China ---
-irf create taiwan, set(myirf) step(12) replace
-**"Repeat the same graphing procedure as South Korea"**
-
-// =========================================================================
-// Part 11: SVAR Estimation for HongKong (Country ID: 5)
-// =========================================================================
-/* Consistent with the South Korean model, we maintain the same:
-   - Identification: Cholesky (Recursive)
-   - Global Controls: fedfunds, ln_vix
-   - Lags: 4
-*/
-
-svar dl_gdp dl_cpi dl_reer if country_id==5, ///
-     lags(1/4) ///
-     exog(s1 s2 s3 fedfunds ln_vix) /// 
-     aeq(Amat) beq(Bmat)
-	 
-// --- IRF and FEVD for China ---
-irf create hongkong, set(myirf) step(12) replace
-**"Repeat the same graphing procedure as South Korea"**
-
-// =========================================================================
-// Part 12: Structural Shock Extraction & Reshaping (For Spillover Analysis)
-// =========================================================================
-/* Objective: 
-   1. Extract structural shocks (e_t) from reduced-form residuals (u_t) for all 5 countries.
-   2. Reshape the dataset from Long to Wide format so countries align on the same 'date' row.
-   3. Save as a new dataset for Correlation/Spillover analysis.
-*/
-
-// 1. Create generic variables for the shocks
-gen shock_gdp = .
-gen shock_cpi = .
-gen shock_reer = .
-
-// 2. Loop through all 5 countries to extract shocks
-// (1:KOR, 2:CHN, 3:JPN, 4:TWN, 5:HKG)
-forvalues i = 1/5 {
-    // Silently estimate SVAR for each country
-    quietly svar dl_gdp dl_cpi dl_reer if country_id==`i', ///
-         lags(1/4) exog(s1 s2 s3 fedfunds ln_vix) aeq(Amat) beq(Bmat) 
-		 // Predict reduced-form residuals
-    quietly predict u_gdp if e(sample), res eq(dl_gdp)
-    quietly predict u_cpi if e(sample), res eq(dl_cpi)
-    quietly predict u_reer if e(sample), res eq(dl_reer)
-    
-    // Extract matrices and calculate Transformation Matrix T = B^-1 * A
-    matrix A_est = e(A)
-    matrix B_est = e(B)
-    matrix T = inv(B_est) * A_est
-    
-    // Generate structural shocks using matrix algebra (e_t = T * u_t)
-    quietly replace shock_gdp = T[1,1]*u_gdp + T[1,2]*u_cpi + T[1,3]*u_reer if e(sample)
-    quietly replace shock_cpi = T[2,1]*u_gdp + T[2,2]*u_cpi + T[2,3]*u_reer if e(sample)
-    quietly replace shock_reer = T[3,1]*u_gdp + T[3,2]*u_cpi + T[3,3]*u_reer if e(sample)
-    
-    // Drop temporary residuals for the next loop iteration
-    drop u_gdp u_cpi u_reer
+    irf table fevd, irf(`cname') ///
+        impulse(dl_gdp dl_cpi dl_reer) response(dl_gdp) step(12)
 }
 
-// 3. Keep ONLY the variables needed for correlation analysis
+// --------------------------------------------------------------------------
+// 3. Overlay IRF Graphs Across Countries
+// --------------------------------------------------------------------------
+
+// --------------------------------------------------------------------------
+// 3.1 Output Shock to CPI
+// --------------------------------------------------------------------------
+
+preserve
+
+use "myirf.irf", clear
+keep if inlist(irfname, "skorea", "china", "japan", "taiwan", "hongkong")
+
+keep if impulse == "dl_gdp" & response == "dl_cpi"
+
+twoway ///
+    (line sirf step if irfname=="china",    sort lpattern(solid)) ///
+    (line sirf step if irfname=="hongkong", sort lpattern(dash)) ///
+    (line sirf step if irfname=="japan",    sort lpattern(shortdash)) ///
+    (line sirf step if irfname=="skorea",   sort lcolor(orange) lpattern(longdash)) ///
+    (line sirf step if irfname=="taiwan",   sort lpattern(dash_dot)), ///
+    xtitle("Quarters after Shock", size(medsmall)) ///
+    ytitle("Response of CPI", size(medsmall)) ///
+    xlabel(0(2)12) ///
+    yline(0, lpattern(dash) lcolor(gs8)) ///
+    legend(order(1 "China" 2 "Hong Kong" 3 "Japan" 4 "Korea" 5 "Taiwan") ///
+           position(6) ring(1) rows(2) size(small) region(lstyle(none))) ///
+    graphregion(margin(small)) ///
+    plotregion(margin(small)) ///
+    xsize(8) ysize(5.5)
+
+graph export "overlay_irf_gdp_cpi.png", replace as(png) width(2000)
+
+restore
+
+// --------------------------------------------------------------------------
+// 3.2 Output Shock to REER
+// --------------------------------------------------------------------------
+
+preserve
+
+use "myirf.irf", clear
+keep if inlist(irfname, "skorea", "china", "japan", "taiwan", "hongkong")
+
+keep if impulse == "dl_gdp" & response == "dl_reer"
+
+twoway ///
+    (line sirf step if irfname=="china",    sort lpattern(solid)) ///
+    (line sirf step if irfname=="hongkong", sort lpattern(dash)) ///
+    (line sirf step if irfname=="japan",    sort lpattern(shortdash)) ///
+    (line sirf step if irfname=="skorea",   sort lcolor(orange) lpattern(longdash)) ///
+    (line sirf step if irfname=="taiwan",   sort lpattern(dash_dot)), ///
+    xtitle("Quarters after Shock", size(medsmall)) ///
+    ytitle("Response of REER", size(medsmall)) ///
+    xlabel(0(2)12) ///
+    yline(0, lpattern(dash) lcolor(gs8)) ///
+    legend(order(1 "China" 2 "Hong Kong" 3 "Japan" 4 "Korea" 5 "Taiwan") ///
+           position(6) ring(1) rows(2) size(small) region(lstyle(none))) ///
+    graphregion(margin(small)) ///
+    plotregion(margin(small)) ///
+    xsize(8) ysize(5.5)
+
+graph export "overlay_irf_gdp_reer.png", replace as(png) width(2000)
+
+restore
+
+// --------------------------------------------------------------------------
+// 3.3 Inflation Shock to REER
+// --------------------------------------------------------------------------
+
+preserve
+
+use "myirf.irf", clear
+keep if inlist(irfname, "skorea", "china", "japan", "taiwan", "hongkong")
+
+keep if impulse == "dl_cpi" & response == "dl_reer"
+
+twoway ///
+    (line sirf step if irfname=="china",    sort lpattern(solid)) ///
+    (line sirf step if irfname=="hongkong", sort lpattern(dash)) ///
+    (line sirf step if irfname=="japan",    sort lpattern(shortdash)) ///
+    (line sirf step if irfname=="skorea",   sort lcolor(orange) lpattern(longdash)) ///
+    (line sirf step if irfname=="taiwan",   sort lpattern(dash_dot)), ///
+    xtitle("Quarters after Shock", size(medsmall)) ///
+    ytitle("Response of REER", size(medsmall)) ///
+    xlabel(0(2)12) ///
+    yline(0, lpattern(dash) lcolor(gs8)) ///
+    legend(order(1 "China" 2 "Hong Kong" 3 "Japan" 4 "Korea" 5 "Taiwan") ///
+           position(6) ring(1) rows(2) size(small) region(lstyle(none))) ///
+    graphregion(margin(small)) ///
+    plotregion(margin(small)) ///
+    xsize(8) ysize(5.5)
+
+graph export "overlay_irf_cpi_reer.png", replace as(png) width(2000)
+
+restore
+
+//---------------------------------------------------------------------------
+// 4. Structural Shock Extraction
+// --------------------------------------------------------------------------
+
+gen shock_gdp  = .
+gen shock_cpi  = .
+gen shock_reer = .
+
+forvalues i = 1/5 {
+
+    di "=================================================="
+    di "Extracting structural shocks for country_id = `i'"
+    di "=================================================="
+
+    quietly svar dl_gdp dl_cpi dl_reer if country_id == `i', ///
+        lags(1/4) ///
+        exog(s1 s2 s3 fedfunds ln_vix) ///
+        aeq(Amat) beq(Bmat)
+
+    tempvar u_gdp u_cpi u_reer
+
+    * Reduced-form residuals from each SVAR equation.
+    quietly predict `u_gdp'  if e(sample), res eq(dl_gdp)
+    quietly predict `u_cpi'  if e(sample), res eq(dl_cpi)
+    quietly predict `u_reer' if e(sample), res eq(dl_reer)
+
+    matrix A_est = e(A)
+    matrix B_est = e(B)
+
+    * Structural shocks are obtained as e_t = inv(B) * A * u_t.
+    matrix T = inv(B_est) * A_est
+
+    quietly replace shock_gdp = ///
+        T[1,1]*`u_gdp' + T[1,2]*`u_cpi' + T[1,3]*`u_reer' if e(sample)
+
+    quietly replace shock_cpi = ///
+        T[2,1]*`u_gdp' + T[2,2]*`u_cpi' + T[2,3]*`u_reer' if e(sample)
+
+    quietly replace shock_reer = ///
+        T[3,1]*`u_gdp' + T[3,2]*`u_cpi' + T[3,3]*`u_reer' if e(sample)
+}
+
+// --------------------------------------------------------------------------
+// 5. Reshape Structural Shocks to Wide Format
+// --------------------------------------------------------------------------
+
 keep qtr country_id shock_gdp shock_cpi shock_reer
 
-// 4. Reshape data from Long to Wide format
-// (This puts all countries' shocks on the same row for the same date)
 reshape wide shock_gdp shock_cpi shock_reer, i(qtr) j(country_id)
 
-// 5. Rename variables for easy identification
-// Output Shocks
-rename shock_gdp1 shock_gdp_kor
-rename shock_gdp2 shock_gdp_chn
-rename shock_gdp3 shock_gdp_jpn
-rename shock_gdp4 shock_gdp_twn
-rename shock_gdp5 shock_gdp_hkg
+* Rename variables according to country_id mapping:
+* 1 = South Korea, 2 = China, 3 = Japan, 4 = Taiwan, 5 = Hong Kong.
 
-// Inflation Shocks
-rename shock_cpi1 shock_cpi_kor
-rename shock_cpi2 shock_cpi_chn
-rename shock_cpi3 shock_cpi_jpn
-rename shock_cpi4 shock_cpi_twn
-rename shock_cpi5 shock_cpi_hkg
+rename shock_gdp1  shock_gdp_kor
+rename shock_gdp2  shock_gdp_chn
+rename shock_gdp3  shock_gdp_jpn
+rename shock_gdp4  shock_gdp_twn
+rename shock_gdp5  shock_gdp_hkg
 
-// Exchange Rate Shocks
+rename shock_cpi1  shock_cpi_kor
+rename shock_cpi2  shock_cpi_chn
+rename shock_cpi3  shock_cpi_jpn
+rename shock_cpi4  shock_cpi_twn
+rename shock_cpi5  shock_cpi_hkg
+
 rename shock_reer1 shock_reer_kor
 rename shock_reer2 shock_reer_chn
 rename shock_reer3 shock_reer_jpn
 rename shock_reer4 shock_reer_twn
 rename shock_reer5 shock_reer_hkg
 
-// 6. Sanity Check
+
+// --------------------------------------------------------------------------
+// 6. Summary and Save Final Shock Dataset
+// --------------------------------------------------------------------------
+
 summ shock_gdp*
 summ shock_cpi*
 summ shock_reer*
 
-matrix list e(A)
-matrix list e(B)
-
-// 7. Save the final dataset 
 save "Dataset_with_Shocks.dta", replace
