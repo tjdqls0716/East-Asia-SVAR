@@ -1,37 +1,67 @@
 /* =========================================================================
 Project: Structural VAR (SVAR) Analysis of East Asian Economies
-Part 15: Construction of Indicators
+Part 5: Construction of Integration and Structural Indicators
 Author: tjdqls0716
 Date: 2026-04-25
-=========================================================================*/
 
-/* DESCRIPTION:
-   This script calculates the bilateral Trade Integration index between 5 economies.
-   Formula: TI_ij = (Exports_ij + Exports_ji) / (GDP_i + GDP_j)
-   A 20-quarter rolling average is applied to remove seasonality and capture structural trends.
-*/
+Description:
+This script constructs pair-level regressors for the final panel regression.
+It calculates 20-quarter moving averages of trade integration, financial
+integration, and industrial structural difference, then merges these indicators with 20-quarter rolling structural shock correlations generated in the previous step.
+
+Main regressors:
+    1. Trade integration
+    2. Financial integration based on real interest rate convergence
+    3. Industrial structural difference based on the Krugman Specialisation Index
+
+Input:
+    Regression Indicators.xlsx
+    rolling_corrs_final_long.dta
+
+Output:
+    Final_Analysis_Data.dta
+========================================================================= */
+
+// --------------------------------------------------------------------------
+// 0. Environment Setup
+// --------------------------------------------------------------------------
 
 clear all
 set more off
 
-* 0. Load Dataset
-*---------------------------------------------------------------------------
-* Ensure the working directory is set correctly before running
-import excel "Regression Indicators (regressors)", sheet("Sheet1") firstrow clear
+// --------------------------------------------------------------------------
+// 1. Load Regressor Dataset and Set Pair-Time Structure
+// --------------------------------------------------------------------------
 
-*============================================================================
-* 1. Date and panel setup
-*============================================================================
+import excel "Regression Indicators.xlsx", ///
+    sheet("Sheet1") firstrow clear
 
+* Construct Stata quarterly date.
 gen date = yq(year, qtr)
 format date %tq
 
-egen pair_id = group(pair)
+* Standardise pair identifier if needed.
+replace pair = lower(pair)
+
+* Check that pair-date uniquely identifies observations.
+isid pair date
+
+* Create numeric pair ID for panel/time-series operations.
+egen pair_id = group(pair), label
+
 xtset pair_id date
 
-*============================================================================
-* 2. Trade Integration: strict 20-quarter moving average
-*============================================================================
+// --------------------------------------------------------------------------
+// 2. Trade Integration: 20-Quarter Moving Average
+// --------------------------------------------------------------------------
+
+/*
+Trade integration is measured as:
+
+    TI_ij = (Exports_ij + Exports_ji) / (GDP_i + GDP_j)
+
+The raw series is smoothed using a strict 20-quarter moving average. A value is kept only when all 20 observations in the rolling window are available.
+*/
 
 rangestat (mean) trade_ma20 = trade_raw ///
           (count) n_trade20 = trade_raw, ///
@@ -40,22 +70,31 @@ rangestat (mean) trade_ma20 = trade_raw ///
 replace trade_ma20 = . if n_trade20 < 20
 
 label var trade_raw  "Bilateral trade integration, raw"
-label var trade_ma20 "Bilateral trade integration, 20-quarter MA"
+label var trade_ma20 "Bilateral trade integration, 20-quarter moving average"
 
-*============================================================================
-* 3. Financial Integration: real interest rate differential
-*============================================================================
+// --------------------------------------------------------------------------
+// 3. Financial Integration: Real Interest Rate Convergence
+// --------------------------------------------------------------------------
 
-* YoY inflation
+/*
+Financial integration is proxied by real interest rate convergence.
+
+Inflation is calculated as year-on-year CPI inflation.
+Real interest rate = nominal interest rate - YoY inflation.
+The bilateral measure is defined as:
+
+    -abs(real_rate_i - real_rate_j)
+
+A higher value indicates a smaller real interest rate gap and hence stronger
+financial convergence.
+*/
+
 gen inf_i = ((cpi_i - L4.cpi_i) / L4.cpi_i) * 100
 gen inf_j = ((cpi_j - L4.cpi_j) / L4.cpi_j) * 100
 
-* Real interest rates
 gen real_rate_i = nom_rate_i - inf_i
 gen real_rate_j = nom_rate_j - inf_j
 
-* Real interest rate differential
-* Higher value = more financially integrated, because smaller absolute gap is closer to zero
 gen real_ir_diff = -abs(real_rate_i - real_rate_j)
 
 rangestat (mean) fi_real_ir_ma20 = real_ir_diff ///
@@ -64,27 +103,34 @@ rangestat (mean) fi_real_ir_ma20 = real_ir_diff ///
 
 replace fi_real_ir_ma20 = . if n_fi20 < 20
 
+* Robustness financial integration measure: nominal interest rate convergence
+gen nom_ir_diff = -abs(nom_rate_i - nom_rate_j)
+
+rangestat (mean) fi_nom_ir_ma20 = nom_ir_diff ///
+          (count) n_fi_nom20 = nom_ir_diff, ///
+          interval(date -19 0) by(pair_id)
+
+replace fi_nom_ir_ma20 = . if n_fi_nom20 < 20
+
 label var inf_i "Inflation rate of country i, YoY (%)"
 label var inf_j "Inflation rate of country j, YoY (%)"
 label var real_rate_i "Real interest rate of country i (%)"
 label var real_rate_j "Real interest rate of country j (%)"
-label var real_ir_diff "Real interest rate differential: -abs(real_i - real_j)"
-label var fi_real_ir_ma20 "Financial integration, real IR differential, 20-quarter MA"
+label var real_ir_diff "Real interest rate convergence: -abs(real_i - real_j)"
+label var fi_real_ir_ma20 "Financial integration, real IR convergence, 20-quarter MA"
+label var nom_ir_diff "Nominal interest rate convergence: -abs(nom_i - nom_j)"
+label var fi_nom_ir_ma20 "Financial integration, nominal IR convergence, 20-quarter MA"
 
-* nominal interest rate differential (for robustness check)
+// --------------------------------------------------------------------------
+// 4. Industrial Structural Difference: Krugman Specialisation Index
+// --------------------------------------------------------------------------
 
-gen nom_ir_diff = -abs(nom_rate_i - nom_rate_j)
-local w = 20
-rangestat (mean) fi_nom_ir_ma20 = nom_ir_diff ///
-          (count) n_nom_fi20 = nom_ir_diff, ///
-          interval(date -19 0) by(pair_id)
-replace fi_nom_ir_ma20 = . if n_nom_fi20 < `w'
+/*
+The Krugman Specialisation Index captures differences in industrial structures.
+A higher value indicates greater structural difference between the two economies.
+The raw series is smoothed using a strict 20-quarter moving average.
+*/
 
-*============================================================================
-* 4. Industrial Structure: Krugman Specialisation Index
-*============================================================================
-
-* KSI should be higher when industrial structures are more different
 rangestat (mean) KSI_ma20 = KSI ///
           (count) n_ksi20 = KSI, ///
           interval(date -19 0) by(pair_id)
@@ -92,69 +138,98 @@ rangestat (mean) KSI_ma20 = KSI ///
 replace KSI_ma20 = . if n_ksi20 < 20
 
 label var KSI "Krugman Specialisation Index, raw"
-label var KSI_ma20 "Krugman Specialisation Index, 20-quarter MA"
+label var KSI_ma20 "Krugman Specialisation Index, 20-quarter moving average"
 
-*============================================================================
-* 5. Merge dependent variables: rolling shock correlations
-*============================================================================
+// --------------------------------------------------------------------------
+// 5. Merge Dependent Variables: Rolling Shock Correlations
+// --------------------------------------------------------------------------
+
+/*
+The dependent variables are the 20-quarter rolling correlations of structural
+shocks generated in 04_calc_all_rolling_corrs.do.
+
+Merge key:
+    pair date
+*/
 
 merge 1:1 pair date using "rolling_corrs_final_long.dta"
+
+tab _merge
 
 keep if _merge == 3
 drop _merge
 
-*======================================================
-* 6. Keep only variables needed for final regressions
-*======================================================
+// --------------------------------------------------------------------------
+// 6. Keep and Rename Variables for Final Regressions
+// --------------------------------------------------------------------------
 
 keep pair pair_id date year qtr ///
      corr_output corr_inflation corr_er ///
-     trade_ma20 fi_real_ir_ma20 fi_nom_ir_ma20 KSI_ma20
-
-*======================================================
-* 7. Rename variables
-*======================================================
+     trade_ma20 fi_real_ir_ma20 fi_nom_ir_ma20 KSI_ma20 
 
 rename trade_ma20        trade_integration
-rename fi_real_ir_ma20   fin_integration
+rename fi_real_ir_ma20   fin_integration\
+rename fi_nom_ir_ma20    fin_integration_nominal
 rename KSI_ma20          structural_difference
 
-rename fi_nom_ir_ma20    fin_integration_nom
+// --------------------------------------------------------------------------
+// 7. Standardise Explanatory Variables
+// --------------------------------------------------------------------------
 
-*======================================================
-* 8. Variable labels
-*======================================================
+/*
+Standardised versions of the explanatory variables are constructed for
+comparability across coefficients. These variables have mean zero and standard deviation one in the final merged dataset before the common-sample restriction.
+*/
+
+foreach x in trade_integration fin_integration fin_integration_nominal structural_difference {
+    egen z_`x' = std(`x')
+    label var z_`x' "Standardised `x'"
+}
+
+// --------------------------------------------------------------------------
+// 8. Variable Labels
+// --------------------------------------------------------------------------
 
 label var pair "Country pair"
 label var pair_id "Country-pair ID"
 label var date "Quarter"
 
 label var corr_output ///
-"Output shock synchronisation (20-quarter rolling correlation)"
+    "Output shock synchronisation (20-quarter rolling correlation)"
 
 label var corr_inflation ///
-"Inflation shock synchronisation (20-quarter rolling correlation)"
+    "Inflation shock synchronisation (20-quarter rolling correlation)"
 
 label var corr_er ///
-"REER shock synchronisation (20-quarter rolling correlation)"
+    "REER shock synchronisation (20-quarter rolling correlation)"
 
 label var trade_integration ///
-"Trade integration (20-quarter moving average)"
+    "Trade integration (20-quarter moving average)"
 
 label var fin_integration ///
-"Financial integration: real interest rate convergence (20-quarter MA)"
+    "Financial integration: real interest rate convergence (20-quarter MA)"
+
+label var fin_integration_nominal ///
+    "Financial integration: nominal interest rate convergence (20-quarter MA)"
 
 label var structural_difference ///
-"Industrial structural difference (Krugman Specialisation Index, 20-quarter MA)"
+    "Industrial structural difference (Krugman Specialisation Index, 20-quarter MA)"
 
-* Ensure balanced sample for all models (Academic standard)
+// --------------------------------------------------------------------------
+// 8. Final Sample Restrictions and Save
+// --------------------------------------------------------------------------
+
+/*
+The final estimation sample is restricted to observations with non-missing
+dependent variables and regressors. This creates a common balanced sample across
+the three final regression specifications.
+*/
+
 keep if !missing(corr_output, corr_inflation, corr_er, ///
-                trade_integration, fin_integration, fin_integration_nom,  structural_difference)
+                 trade_integration, fin_integration, fin_integration_nominal, structural_difference)
 
-egen z_trade = std(trade_integration)
-egen z_fin = std(fin_integration)
-egen z_structure = std(structural_difference)
-egen z_fin_nom = std(fin_integration_nom)
+xtset pair_id date
 
-* Save the cleaned final dataset for regression
+compress
+
 save "Final_Analysis_Data.dta", replace
