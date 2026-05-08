@@ -26,7 +26,7 @@ clear all
 set more off
 
 // --------------------------------------------------------------------------
-// Part 1: Import and Prepare Global Exogenous Variables (FRED Data)
+// 1. Import and Prepare Global Exogenous Variables (FRED Data)
 //---------------------------------------------------------------------------
 
 import excel "global_data_raw.xlsx", sheet("Sheet1") firstrow clear
@@ -49,7 +49,7 @@ isid qtr
 save "global_temp.dta", replace
 
 // --------------------------------------------------------------------------
-// Part 2: Import Main Macro Data and Merge with Global Factors
+// 2. Import Main Macro Data and Merge with Global Factors
 //---------------------------------------------------------------------------
 
 import excel "PPE Macrodata.xlsx", sheet("Sheet1") firstrow clear
@@ -69,7 +69,7 @@ drop _merge
 xtset country_id qtr
 
 // --------------------------------------------------------------------------
-// Part 3: Variable Transformation
+// 3. Variable Transformation
 // --------------------------------------------------------------------------
 
 gen l_gdp  = ln(real_gdp)
@@ -90,7 +90,7 @@ rename season2 s2
 rename season3 s3
 
 // --------------------------------------------------------------------------
-// Part 4: Panel Unit Root Tests
+// 4. Panel Unit Root Tests
 // --------------------------------------------------------------------------
 
 xtunitroot fisher l_gdp,  dfuller lags(1)
@@ -102,7 +102,7 @@ xtunitroot fisher dl_cpi,  dfuller lags(1)
 xtunitroot fisher dl_reer, dfuller lags(1)
 
 // --------------------------------------------------------------------------
-// Part 5: Lag Selection and Diagnostic Checks
+// 5. Lag Selection and Diagnostic Checks
 // --------------------------------------------------------------------------
 
 foreach c of numlist 1/5 {
@@ -119,7 +119,7 @@ foreach c of numlist 1/5 {
 }
 
 // --------------------------------------------------------------------------
-// Part 6: Labels and Save Final Dataset
+// 6. Labels and Save Final Dataset
 // --------------------------------------------------------------------------
 
 label var fedfunds "US Fed Funds Rate (%)"
